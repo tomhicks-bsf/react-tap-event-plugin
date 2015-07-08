@@ -40,14 +40,13 @@ var isTouch = function(topLevelType) {
     topLevelTypes.topTouchMove
   ];
   return touchTypes.indexOf(topLevelType) >= 0;
-}
+};
 
 /**
  * Number of pixels that are tolerated in between a `touchStart` and `touchEnd`
  * in order to still be considered a 'tap' event.
  */
 var tapMoveThreshold = 10;
-var ignoreMouseThreshold = 750;
 var startCoords = {x: null, y: null};
 var lastTouchEvent = null;
 
@@ -104,66 +103,64 @@ var now = (function() {
   } else {
     // IE8 support: http://stackoverflow.com/questions/9430357/please-explain-why-and-how-new-date-works-as-workaround-for-date-now-in
     return function () {
-      return +new Date;
-    }
+      return +(new Date());
+    };
   }
 })();
 
-var TapEventPlugin = {
+module.exports = function buildTapEventPlugin (shouldRejectClick) {
 
-  tapMoveThreshold: tapMoveThreshold,
+  return {
 
-  ignoreMouseThreshold: ignoreMouseThreshold,
+    tapMoveThreshold: tapMoveThreshold,
 
-  eventTypes: eventTypes,
+    eventTypes: eventTypes,
 
-  /**
-   * @param {string} topLevelType Record from `EventConstants`.
-   * @param {DOMEventTarget} topLevelTarget The listening component root node.
-   * @param {string} topLevelTargetID ID of `topLevelTarget`.
-   * @param {object} nativeEvent Native browser event.
-   * @return {*} An accumulation of synthetic events.
-   * @see {EventPluginHub.extractEvents}
-   */
-  extractEvents: function(
-      topLevelType,
-      topLevelTarget,
-      topLevelTargetID,
-      nativeEvent,
-      nativeEventTarget) {
-
-    if (isTouch(topLevelType)) {
-      lastTouchEvent = now();
-    } else {
-      if (lastTouchEvent && (now() - lastTouchEvent) < ignoreMouseThreshold) {
-        return null;
-      }
-    }
-
-    if (!isStartish(topLevelType) && !isEndish(topLevelType)) {
-      return null;
-    }
-    var event = null;
-    var distance = getDistance(startCoords, nativeEvent);
-    if (isEndish(topLevelType) && distance < tapMoveThreshold) {
-      event = SyntheticUIEvent.getPooled(
-        eventTypes.touchTap,
+    /**
+     * @param {string} topLevelType Record from `EventConstants`.
+     * @param {DOMEventTarget} topLevelTarget The listening component root node.
+     * @param {string} topLevelTargetID ID of `topLevelTarget`.
+     * @param {object} nativeEvent Native browser event.
+     * @return {*} An accumulation of synthetic events.
+     * @see {EventPluginHub.extractEvents}
+     */
+    extractEvents: function(
+        topLevelType,
+        topLevelTarget,
         topLevelTargetID,
         nativeEvent,
-        nativeEventTarget
-      );
-    }
-    if (isStartish(topLevelType)) {
-      startCoords.x = getAxisCoordOfEvent(Axis.x, nativeEvent);
-      startCoords.y = getAxisCoordOfEvent(Axis.y, nativeEvent);
-    } else if (isEndish(topLevelType)) {
-      startCoords.x = 0;
-      startCoords.y = 0;
-    }
-    EventPropagators.accumulateTwoPhaseDispatches(event);
-    return event;
-  }
+        nativeEventTarget) {
 
+      if (isTouch(topLevelType)) {
+        lastTouchEvent = now();
+      } else {
+        if (shouldRejectClick(lastTouchEvent, now())) {
+          return null;
+        }
+      }
+
+      if (!isStartish(topLevelType) && !isEndish(topLevelType)) {
+        return null;
+      }
+      var event = null;
+      var distance = getDistance(startCoords, nativeEvent);
+      if (isEndish(topLevelType) && distance < tapMoveThreshold) {
+        event = SyntheticUIEvent.getPooled(
+          eventTypes.touchTap,
+          topLevelTargetID,
+          nativeEvent,
+          nativeEventTarget
+        );
+      }
+      if (isStartish(topLevelType)) {
+        startCoords.x = getAxisCoordOfEvent(Axis.x, nativeEvent);
+        startCoords.y = getAxisCoordOfEvent(Axis.y, nativeEvent);
+      } else if (isEndish(topLevelType)) {
+        startCoords.x = 0;
+        startCoords.y = 0;
+      }
+      EventPropagators.accumulateTwoPhaseDispatches(event);
+      return event;
+    }
+  };
 };
-
-module.exports = TapEventPlugin;

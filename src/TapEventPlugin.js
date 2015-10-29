@@ -147,7 +147,7 @@ module.exports = function buildTapEventPlugin (shouldRejectClick) {
         event = SyntheticUIEvent.getPooled(
           eventTypes.touchTap,
           topLevelTargetID,
-          nativeEvent,
+          nativeEvent
         );
       }
       if (isStartish(topLevelType)) {
